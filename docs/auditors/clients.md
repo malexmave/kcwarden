@@ -204,6 +204,41 @@ This configuration can lead to the issuance of access tokens with excessive priv
 The finding prompts a review of client configurations, encouraging administrators to specifically tailor access token scopes to match the minimal requirements of each client.
 Adjusting the scope settings to disable _full scope allowed_ mitigates the risk associated with overly permissive tokens, aligning with best practices for secure token management.
 
+## ClientWithServiceAccountMissingAdminApiScope
+
+This auditor identifies clients whose service account holds roles for the Admin API (directly, through composite roles, or through groups), but that have neither a default nor an optional `kc-admin-api` scope.
+
+Starting with Keycloak 26.6.8, clients that access the Admin API must have the `kc-admin-api` client scope assigned.
+Without it, Admin API calls made with tokens of the client are rejected.
+Downstream distributions (such as RHBK) may backport this change to other versions, so check the release notes of your distribution.
+The migration to this version assigns the scope automatically to `admin-cli` and `security-admin-console`, but custom clients and service accounts need to be updated manually.
+The check does not depend on the Keycloak version in use, so it can be used both to prepare an upgrade and to find clients that were missed afterwards.
+Since the issue is a functional one that only becomes relevant after the upgrade, the findings have a low severity or lower.
+Roles for the Admin API are roles of the `realm-management` client or, in the master realm, roles of the `<realm>-realm` clients.
+Composite roles are resolved.
+To resolve a finding, assign the `kc-admin-api` scope to the client, either as a default scope or as an optional scope that is explicitly requested.
+
+See also [ClientWithScopeMappedAdminRolesMissingAdminApiScope](#clientwithscopemappedadminrolesmissingadminapiscope) for the equivalent check on user logins.
+
+## ClientWithScopeMappedAdminRolesMissingAdminApiScope
+
+This auditor identifies clients that are not _full scope allowed_, but whose explicit scope mappings, set directly on the client or on one of its default or optional client scopes, include roles for the Admin API, while the `kc-admin-api` scope is missing.
+These are the roles that can end up in tokens for user logins through this client.
+
+Starting with Keycloak 26.6.8, clients that access the Admin API must have the `kc-admin-api` client scope assigned.
+Without it, Admin API calls made with tokens of the client are rejected.
+Downstream distributions (such as RHBK) may backport this change to other versions, so check the release notes of your distribution.
+The migration to this version assigns the scope automatically to `admin-cli` and `security-admin-console`, but custom clients and service accounts need to be updated manually.
+The check does not depend on the Keycloak version in use, so it can be used both to prepare an upgrade and to find clients that were missed afterwards.
+Since the issue is a functional one that only becomes relevant after the upgrade, the findings have a low severity or lower.
+Roles for the Admin API are roles of the `realm-management` client or, in the master realm, roles of the `<realm>-realm` clients.
+Composite roles are resolved.
+To resolve a finding, assign the `kc-admin-api` scope to the client, either as a default scope or as an optional scope that is explicitly requested.
+
+The auditor only knows that the client _may_ carry admin roles in user tokens, not whether any user actually has them or the client is used for Admin API access, so some findings may be unnecessary.
+Clients with _full scope allowed_ are not checked, to avoid a large number of false positives.
+For service accounts, see [ClientWithServiceAccountMissingAdminApiScope](#clientwithserviceaccountmissingadminapiscope).
+
 ## ClientHasNoRedirectUris
 
 The auditor triggers if the list of allowed redirect URIs is unexpectedly empty.
