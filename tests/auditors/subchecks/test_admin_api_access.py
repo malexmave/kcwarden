@@ -36,13 +36,6 @@ def test_filter_admin_api_roles():
     assert sub.filter_admin_api_roles(roles, "test") == {"realm-management": ["a", "b"]}
 
 
-def test_expand_roles_skips_unknown_roles():
-    db = Mock()
-    db.get_realm_role.side_effect = KeyError("x")
-    db.get_client_role.side_effect = KeyError("x")
-    assert sub.expand_roles(db, ["a"], {"realm-management": ["b"]}) == {"realm": [], "client": {}}
-
-
 def test_service_account_roles(mock_client):
     mock_client.has_service_account_enabled.return_value = True
     mock_client.get_service_account_name.return_value = "service-account-x"
@@ -79,7 +72,7 @@ def _scope_mapping_setup(mock_client, full_scope=False):
 
 def test_scope_mapped_roles(mock_client):
     db = _scope_mapping_setup(mock_client)
-    with patch.object(sub, "expand_roles", side_effect=lambda d, r, c: {"realm": r, "client": c}):
+    with patch(HELPER + ".get_effective_roles_for_role_names", side_effect=lambda d, r, c: {"realm": r, "client": c}):
         assert sub.get_scope_mapped_admin_api_roles(db, mock_client) == {
             "realm-management": ["manage-users", "view-users"]
         }

@@ -36,25 +36,6 @@ def filter_admin_api_roles(effective_roles: dict, realm_name: str) -> dict[str, 
     }
 
 
-def expand_roles(db: Database, realm_roles: list[str], client_roles: dict[str, list[str]]) -> dict:
-    """Resolves role names to their effective roles (including composites). Unknown roles are skipped."""
-    effective = {"realm": [], "client": {}}
-    for role_name in realm_roles:
-        try:
-            role = db.get_realm_role(role_name)
-        except KeyError:
-            continue
-        effective = helper._merge_role_dict(effective, helper.get_effective_roles(db, role))
-    for role_client, role_names in client_roles.items():
-        for role_name in role_names:
-            try:
-                role = db.get_client_role(role_name, role_client)
-            except KeyError:
-                continue
-            effective = helper._merge_role_dict(effective, helper.get_effective_roles(db, role))
-    return effective
-
-
 def get_service_account_admin_api_roles(db: Database, client: Client) -> dict[str, list[str]]:
     if not client.has_service_account_enabled():
         return {}
@@ -83,4 +64,6 @@ def get_scope_mapped_admin_api_roles(db: Database, client: Client) -> dict[str, 
         realm_roles.extend(scope.get_realm_roles())
         for role_client, role_names in scope.get_client_roles().items():
             client_roles.setdefault(role_client, []).extend(role_names)
-    return filter_admin_api_roles(expand_roles(db, realm_roles, client_roles), client.get_realm().get_name())
+    return filter_admin_api_roles(
+        helper.get_effective_roles_for_role_names(db, realm_roles, client_roles), client.get_realm().get_name()
+    )

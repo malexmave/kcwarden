@@ -1,5 +1,6 @@
 from kcwarden.database.helper import (
     _role_contains_role,
+    get_effective_roles_for_role_names,
     get_effective_roles_for_service_account_direct_assignments,
     get_effective_roles_for_service_account_group_assignments,
     get_effective_roles_for_service_account,
@@ -121,6 +122,21 @@ class TestRoleContainsRole:
         role2 = RealmRole(composite_realm_role_json, realm)
         assert role2.is_composite_role()
         assert not _role_contains_role(role1, role2)
+
+
+class TestGetEffectiveRolesForRoleNames:
+    def test_returns_empty_for_no_roles(self, database):
+        assert get_effective_roles_for_role_names(database, [], {}) == {"realm": [], "client": {}}
+
+    def test_expands_realm_and_client_roles_with_composites(self, database, realm):
+        database.add_realm_role(make_realm_role("child-role", realm))
+        database.add_realm_role(
+            make_realm_role("composite-role", realm, composite=True, composites={"realm": ["child-role"]})
+        )
+        database.add_client_role(make_client_role("client-role", "my-client", realm))
+        result = get_effective_roles_for_role_names(database, ["composite-role"], {"my-client": ["client-role"]})
+        assert sorted(result["realm"]) == ["child-role", "composite-role"]
+        assert result["client"] == {"my-client": ["client-role"]}
 
 
 class TestGetEffectiveRolesForServiceAccountDirectAssignments:
